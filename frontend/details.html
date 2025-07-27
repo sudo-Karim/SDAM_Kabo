@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genomic Data Details - Genomic Data Warehouse</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Include Bootstrap for better styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-dna"></i> Genomic Data Warehouse
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="<%= backUrl %>">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+    <div class="container mt-4">
+        <% if (error) { %>
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i> <%= error %>
+                </div>
+                <a href="<%= backUrl %>" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+        <% } else { %>
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="display-6 text-primary">
+                    <i class="fas fa-info-circle"></i> Genomic Data Details
+                </h1>
+            </div>
+        </div>
+
+        <!-- Main Details Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">
+                            <i class="fas fa-dna"></i> Record ID: <%= data.id %>
+                            <% if (data.symbol) { %>
+                            - <%= data.symbol %>
+                            <% } %>
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Genomic Location -->
+                            <div class="col-lg-6 mb-4">
+                                <h5 class="text-secondary">
+                                    <i class="fas fa-map-marker-alt"></i> Genomic Location
+                                </h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Chromosome:</strong></td>
+                                        <td><%= data.chr %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Start Position:</strong></td>
+                                        <td><%= data.start.toLocaleString() %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>End Position:</strong></td>
+                                        <td><%= data.end.toLocaleString() %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Strand:</strong></td>
+                                        <td>
+                                            <%= data.strand %> 
+                                            <span class="text-muted">
+                                                (<%= data.strand === '+' ? 'Forward' : data.strand === '-' ? 'Reverse' : 'Unknown' %>)
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Length:</strong></td>
+                                        <td><%= data.length.toLocaleString() %> bp</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Midpoint:</strong></td>
+                                        <td><%= data.midpoint.toLocaleString() %></td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Gene Information -->
+                            <div class="col-lg-6 mb-4">
+                                <h5 class="text-secondary">
+                                    <i class="fas fa-gene"></i> Gene Information
+                                </h5>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Gene Symbol:</strong></td>
+                                        <td><%= data.symbol || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Ensembl ID:</strong></td>
+                                        <td>
+                                            <% if (data.ensg) { %>
+                                            <a href="https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=<%= data.ensg %>" 
+                                               target="_blank" class="text-decoration-none">
+                                                <%= data.ensg %> <i class="fas fa-external-link-alt fa-sm"></i>
+                                            </a>
+                                            <% } else { %>
+                                            N/A
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Log2 Fold Change:</strong></td>
+                                        <td>
+                                            <% if (data.log2fc !== null && data.log2fc !== undefined) { %>
+                                            <span class="badge <%= data.log2fc > 0 ? 'bg-success' : data.log2fc < 0 ? 'bg-danger' : 'bg-secondary' %>">
+                                                <%= data.log2fc %>
+                                            </span>
+                                            <% } else { %>
+                                            N/A
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Fold Change:</strong></td>
+                                        <td>
+                                            <% if (data.foldChange) { %>
+                                            <%= data.foldChange.toFixed(3) %>x
+                                            <% } else { %>
+                                            N/A
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Effect:</strong></td>
+                                        <td>
+                                            <% if (data.effect) { %>
+                                            <span class="badge <%= data.effect === 'up' ? 'bg-success' : data.effect === 'down' ? 'bg-danger' : 'bg-secondary' %>">
+                                                <%= data.effect === 'up' ? 'Up-regulated' : data.effect === 'down' ? 'Down-regulated' : data.effect %>
+                                            </span>
+                                            <% } else { %>
+                                            N/A
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Experimental Details -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-flask"></i> Experimental Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-6 mb-3">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Cell Line:</strong></td>
+                                        <td><%= data.cellline || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Condition:</strong></td>
+                                        <td><%= data.condition || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>CRISPR System:</strong></td>
+                                        <td><%= data.cas || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Screen Type:</strong></td>
+                                        <td><%= data.screentype || 'N/A' %></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-lg-6 mb-3">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Initial Read Count:</strong></td>
+                                        <td><%= data.rc_initial || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Final Read Count:</strong></td>
+                                        <td><%= data.rc_final || 'N/A' %></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>PubMed ID:</strong></td>
+                                        <td>
+                                            <% if (data.pubmed) { %>
+                                            <a href="https://pubmed.ncbi.nlm.nih.gov/<%= data.pubmed %>/" 
+                                               target="_blank" class="text-decoration-none">
+                                                <%= data.pubmed %> <i class="fas fa-external-link-alt fa-sm"></i>
+                                            </a>
+                                            <% } else { %>
+                                            N/A
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sequence Information -->
+        <% if (data.sequence) { %>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-dna"></i> Sequence Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="sequence-container">
+                            <label class="form-label"><strong>Sequence:</strong></label>
+                            <div class="font-monospace bg-light p-3 rounded border">
+                                <%= data.sequence %>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Length: <%= data.sequence.length %> nucleotides</small>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copySequence()">
+                                    <i class="fas fa-copy"></i> Copy Sequence
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Action Buttons -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex gap-2 flex-wrap">
+                    <% if (data.ensg) { %>
+                    <a href="https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=<%= data.ensg %>" 
+                       target="_blank" class="btn btn-outline-info">
+                        <i class="fas fa-external-link-alt"></i> View in Ensembl
+                    </a>
+                    <% } %>
+                    <% if (data.pubmed) { %>
+                    <a href="https://pubmed.ncbi.nlm.nih.gov/<%= data.pubmed %>/" 
+                       target="_blank" class="btn btn-outline-success">
+                        <i class="fas fa-book"></i> View Publication
+                    </a>
+                    <% } %>
+                    <button class="btn btn-outline-secondary" onclick="exportRecord()">
+                        <i class="fas fa-download"></i> Export Record
+                    </button>
+                    <% if (data.symbol) { %>
+                    <a href="/gene/<%= data.symbol %>" class="btn btn-outline-primary">
+                        <i class="fas fa-dna"></i> View Gene Overview
+                    </a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <% } %>
+    </div>
+    </div>
+
+    <!-- Data for JavaScript -->
+    <script type="application/json" id="genomic-data">
+        <%- JSON.stringify(data || {}) %>
+    </script>
+
+    <script>
+        // Get data from the JSON script tag
+        const genomicData = JSON.parse(document.getElementById('genomic-data').textContent);
+
+        // Copy sequence to clipboard
+        function copySequence() {
+            const sequence = genomicData.sequence || '';
+            
+            if (!sequence) return;
+            
+            navigator.clipboard.writeText(sequence).then(() => {
+                // Show success message
+                const btn = event.target.closest('button');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+            }).catch(err => console.error('Could not copy text:', err));
+        }
+
+        // Export record as JSON
+        function exportRecord() {
+            if (!genomicData?.id) {
+                alert('No data available to export.');
+                return;
+            }
+            
+            const jsonContent = JSON.stringify(genomicData, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `genomic_record_${genomicData.id}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light text-center py-3 mt-5">
+        <div class="container">
+            <p>Created by Karim Abo Shawish for Scientific Data Management (SDAM)</p>
+        </div>
+    </footer>
+</body>
+</html>
