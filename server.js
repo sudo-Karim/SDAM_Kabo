@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const { buildSearchQuery } = require('./searchArg');
 const { 
-    renderIndexError, renderIndexSuccess, formatGenesFromRows, 
+    renderIndexError, renderIndexSuccess, formatGenesFromRows, formatGeneFromRow,
     handleApiError, parseQueryParams, validateSortBy 
 } = require('./utils/responseHelpers');
 
@@ -36,7 +36,7 @@ function shouldUseGeneView(searchQuery) {
 }
 
 // Helper function to get gene-based results
-function getGeneViewResults(searchQuery, unused1, unused2, page, limit, sortBy, sortOrder, callback) {
+function getGeneViewResults(searchQuery, page, limit, sortBy, sortOrder, callback) {
     // First, get all records for genes matching the search
     const geneSearchQuery = `
         SELECT rowid, * FROM genome_crispr 
@@ -93,7 +93,7 @@ app.get('/', (req, res) => {
     }
 
     if (shouldUseGeneView(params.searchQuery)) {
-        getGeneViewResults(params.searchQuery, null, null, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
+        getGeneViewResults(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
             if (err) {
                 return renderIndexError(res, req, 'Database error occurred', {
                     itemsPerPage: params.limit, sortBy: params.sortBy, sortOrder: params.sortOrder, hasSearch: true
@@ -139,51 +139,24 @@ app.get('/', (req, res) => {
 // Details page route
 app.get('/details/:id', (req, res) => {
     db.get('SELECT rowid, * FROM genome_crispr WHERE rowid = ?', [req.params.id], (err, row) => {
-        let backUrl = '/';
-        const referer = req.get('Referer');
-        
-        // If coming from a search results page, go back to that
-        if (referer && referer.includes('/?')) {
-            backUrl = referer;
-        } 
-        // If coming from gene overview, go to search for that gene
-        else if (referer && referer.includes('/gene/')) {
-            const symbol = row?.symbol;
-            backUrl = symbol ? `/?query=${encodeURIComponent(symbol)}` : '/';
-        }
-        // Default fallback
-        else {
-            backUrl = '/';
-        }
-        
-        if (err) return res.render('details', { error: 'Database error occurred', data: null, backUrl });
-        if (!row) return res.render('details', { error: 'Record not found', data: null, backUrl });
+        if (err) return res.render('details', { error: 'Database error occurred', data: null });
+        if (!row) return res.render('details', { error: 'Record not found', data: null });
 
-        const data = require('./utils/responseHelpers').formatGeneFromRow({ ...row, id: row.rowid });
-        res.render('details', { data, error: null, backUrl });
+        const data = formatGeneFromRow({ ...row, id: row.rowid });
+        res.render('details', { data, error: null });
     });
 });
 
 // Gene overview route
 app.get('/gene/:symbol', (req, res) => {
     const symbol = req.params.symbol;
-    const referer = req.get('Referer');
-    
-    // Always go back to search results for this gene, not to the referer
-    // This prevents loops between gene overview and details pages
-    let backUrl = `/?query=${encodeURIComponent(symbol)}`;
-    
-    // Only if referer is the main search page with parameters, use that
-    if (referer && referer.includes('/?') && referer.includes('query=')) {
-        backUrl = referer;
-    }
     
     db.all('SELECT rowid, * FROM genome_crispr WHERE symbol = ? ORDER BY cellline, start', [symbol], (err, rows) => {
-        if (err) return res.render('gene-overview', { error: 'Database error occurred', gene: null, backUrl });
-        if (!rows || rows.length === 0) return res.render('gene-overview', { error: 'Gene not found', gene: null, backUrl });
+        if (err) return res.render('gene-overview', { error: 'Database error occurred', gene: null });
+        if (!rows || rows.length === 0) return res.render('gene-overview', { error: 'Gene not found', gene: null });
 
         const geneView = GeneView.fromDbRows(rows);
-        res.render('gene-overview', { gene: geneView.toJSON(), error: null, backUrl });
+        res.render('gene-overview', { gene: geneView.toJSON(), error: null });
     });
 });
 
