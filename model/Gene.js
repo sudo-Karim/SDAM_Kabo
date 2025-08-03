@@ -2,25 +2,12 @@
  * Gene model for genomic data
  */
 
-class Gene {
+const BaseModel = require('./BaseModel');
+
+class Gene extends BaseModel {
     constructor(data) {
+        super(data);
         this.id = data.id || data.rowid; // Handle both id and rowid
-        this.start = data.start;
-        this.end = data.end;
-        this.chr = data.chr;
-        this.strand = data.strand;
-        this.pubmed = data.pubmed;
-        this.cellline = data.cellline;
-        this.condition = data.condition;
-        this.sequence = data.sequence;
-        this.symbol = data.symbol;
-        this.ensg = data.ensg;
-        this.log2fc = data.log2fc;
-        this.rc_initial = data.rc_initial;
-        this.rc_final = data.rc_final;
-        this.effect = data.effect;
-        this.cas = data.cas;
-        this.screentype = data.screentype;
     }
 
     /**
@@ -28,17 +15,19 @@ class Gene {
      * @returns {number} Midpoint position
      */
     getMidpoint() {
-        const start = parseInt(this.start);
-        const end = parseInt(this.end);
-        return (!isNaN(start) && !isNaN(end)) ? Math.floor((start + end) / 2) : null;
-    }    /**
+        const start = this.parseInt(this.start);
+        const end = this.parseInt(this.end);
+        return (start !== null && end !== null) ? Math.floor((start + end) / 2) : null;
+    }
+
+    /**
      * Calculate the length of the gene segment
      * @returns {number} Length in base pairs
      */
     getLength() {
-        const start = parseInt(this.start);
-        const end = parseInt(this.end);
-        return (!isNaN(start) && !isNaN(end)) ? Math.abs(end - start) + 1 : null;
+        const start = this.parseInt(this.start);
+        const end = this.parseInt(this.end);
+        return (start !== null && end !== null) ? Math.abs(end - start) + 1 : null;
     }
 
     /**
@@ -46,7 +35,7 @@ class Gene {
      * @returns {boolean} True if upregulated
      */
     isUpregulated() {
-        return parseFloat(this.log2fc) > 0;
+        return this.parseNumber(this.log2fc) > 0;
     }
 
     /**

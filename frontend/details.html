@@ -245,9 +245,6 @@
                             </div>
                             <div class="mt-2">
                                 <small class="text-muted">Length: <%= data.sequence.length %> nucleotides</small>
-                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copySequence()">
-                                    <i class="fas fa-copy"></i> Copy Sequence
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -272,9 +269,6 @@
                         <i class="fas fa-book"></i> View Publication
                     </a>
                     <% } %>
-                    <button class="btn btn-outline-secondary" onclick="exportRecord()">
-                        <i class="fas fa-download"></i> Export Record
-                    </button>
                     <% if (data.symbol) { %>
                     <a href="/gene/<%= data.symbol %>" class="btn btn-outline-primary">
                         <i class="fas fa-dna"></i> View Gene Overview
@@ -295,45 +289,6 @@
     <script>
         // Get data from the JSON script tag
         const genomicData = JSON.parse(document.getElementById('genomic-data').textContent);
-
-        // Copy sequence to clipboard
-        function copySequence() {
-            const sequence = genomicData.sequence || '';
-            
-            if (!sequence) return;
-            
-            navigator.clipboard.writeText(sequence).then(() => {
-                // Show success message
-                const btn = event.target.closest('button');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-                btn.classList.remove('btn-outline-secondary');
-                btn.classList.add('btn-success');
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.remove('btn-success');
-                    btn.classList.add('btn-outline-secondary');
-                }, 2000);
-            }).catch(err => console.error('Could not copy text:', err));
-        }
-
-        // Export record as JSON
-        function exportRecord() {
-            if (!genomicData?.id) {
-                alert('No data available to export.');
-                return;
-            }
-            
-            const jsonContent = JSON.stringify(genomicData, null, 2);
-            const blob = new Blob([jsonContent], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `genomic_record_${genomicData.id}.json`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        }
     </script>
 
     <!-- Footer -->

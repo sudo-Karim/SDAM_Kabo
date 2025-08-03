@@ -56,15 +56,15 @@ class SearchArguments {
 function parseSearchQuery(queryParams) {
     const searchArgs = new SearchArguments();
 
-    // General text search across multiple fields
+    // Gene symbol or ENSG ID search only
     if (queryParams.query && queryParams.query.trim()) {
         const query = `%${queryParams.query.trim()}%`;
         searchArgs.addCondition(
-            '(symbol LIKE ? OR ensg LIKE ? OR sequence LIKE ? OR cellline LIKE ? OR condition LIKE ?)',
+            '(symbol LIKE ? OR ensg LIKE ?)',
             query
         );
-        // Add the same parameter 4 more times for the remaining LIKE clauses
-        searchArgs.params.push(query, query, query, query);
+        // Add the same parameter for the second LIKE clause
+        searchArgs.params.push(query);
     }
 
     // Chromosome filter
@@ -168,7 +168,5 @@ function buildSearchQuery(queryParams, options = {}) {
 }
 
 module.exports = {
-    SearchArguments,
-    parseSearchQuery,
     buildSearchQuery
 };

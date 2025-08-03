@@ -38,16 +38,6 @@
             <a class="navbar-brand" href="/">
                 <i class="fas fa-dna"></i> Genome CRISPR Data Warehouse
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#search">Search Data</a>
-                    </li>
-                </ul>
-            </div>
         </div>
     </nav>
 
@@ -58,13 +48,13 @@
             <div class="col-12 text-center">
                 <div class="hero-section">
                     <h1 class="display-4 text-primary">Genome CRISPR Data Warehouse</h1>
-                    <p class="lead">Search, analyze, and visualize genomic data with advanced filtering and visualization tools.</p>
+                    <p class="lead">Search and analyze CRISPR genomic data by gene symbol or ENSG ID</p>
                 </div>
             </div>
         </div>
 
         <!-- Search Section -->
-        <div class="row mb-5" id="search">
+        <div class="row mb-5">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -77,7 +67,7 @@
                                     <label for="query" class="form-label">Search Query</label>
                                     <input type="text" class="form-control" name="query" id="query" 
                                            value="<%= searchQuery %>" 
-                                           placeholder="Search genes, symbols, chromosomes...">
+                                           placeholder="Enter gene symbol (e.g., TP53) or ENSG ID (e.g., ENSG00000141510)">
                                 </div>
                             </div>
                             
@@ -121,13 +111,6 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h3><i class="fas fa-table"></i> Search Results</h3>
-                        <div>
-                            <% if (results.length > 0) { %>
-                            <button class="btn btn-sm btn-outline-primary" onclick="exportResults()">
-                                <i class="fas fa-download"></i> Export CSV
-                            </button>
-                            <% } %>
-                        </div>
                     </div>
                     <div class="card-body">
                         <% if (results.length > 0) { %>
@@ -172,7 +155,7 @@
                         
                         <div class="table-responsive">
                             <% if (isGeneView) { %>
-                            <!-- Gene View: Hierarchical display -->
+                            <!-- Gene View: Simplified display -->
                             <% results.forEach(gene => { %>
                             <div class="card mb-3">
                                 <div class="card-header bg-primary text-white">
@@ -196,93 +179,23 @@
                                             </span>
                                             <% } %>
                                             <a href="/gene/<%= gene.symbol %>" class="btn btn-sm btn-light ms-2">
-                                                <i class="fas fa-external-link-alt"></i> Full View
+                                                <i class="fas fa-external-link-alt"></i> View Details
                                             </a>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
-                                        <div class="col-md-3 mb-2">
+                                        <div class="col-md-4 mb-2">
                                             <strong>Chromosome:</strong> <%= gene.chr %>
                                         </div>
-                                        <div class="col-md-9 mb-2">
+                                        <div class="col-md-4 mb-2">
                                             <strong>Cell Lines:</strong> <%= gene.cellLines.length %>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Cell Lines -->
-                                    <% gene.cellLines.forEach((cellLine, cellIndex) => { %>
-                                    <div class="mt-3">
-                                        <h6 class="text-secondary">
-                                            <i class="fas fa-vial"></i> <%= cellLine.name %>
-                                            <small class="text-muted">
-                                                (<%= cellLine.sgRNACount %> sgRNAs
-                                                <% if (cellLine.averageEffect !== null) { %>
-                                                , Avg: <%= cellLine.averageEffect.toFixed(3) %>
-                                                <% } %>)
-                                            </small>
-                                        </h6>
-                                        
-                                        <!-- Collapsible sgRNA details -->
-                                        <div class="accordion" id="accordion-<%= gene.symbol %>-<%= cellIndex %>">
-                                            <div class="accordion-item">
-                                                <h2 class="accordion-header">
-                                                    <button class="accordion-button collapsed" type="button" 
-                                                            data-bs-toggle="collapse" 
-                                                            data-bs-target="#collapse-<%= gene.symbol %>-<%= cellIndex %>"
-                                                            aria-expanded="false">
-                                                        View sgRNAs (<%= cellLine.sgRNACount %>)
-                                                    </button>
-                                                </h2>
-                                                <div id="collapse-<%= gene.symbol %>-<%= cellIndex %>" 
-                                                     class="accordion-collapse collapse"
-                                                     data-bs-parent="#accordion-<%= gene.symbol %>-<%= cellIndex %>">
-                                                    <div class="accordion-body">
-                                                        <div class="table-responsive">
-                                                            <table class="table table-sm">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>ID</th>
-                                                                        <th>Sequence</th>
-                                                                        <th>Position</th>
-                                                                        <th>Strand</th>
-                                                                        <th>Log2FC</th>
-                                                                        <th>Actions</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    <% cellLine.sgRNAs.forEach(sgRNA => { %>
-                                                                    <tr>
-                                                                        <td><%= sgRNA.id %></td>
-                                                                        <td>
-                                                                            <code class="small"><%= sgRNA.sequence %></code>
-                                                                        </td>
-                                                                        <td>
-                                                                            <%= sgRNA.start.toLocaleString() %>-<%= sgRNA.end.toLocaleString() %>
-                                                                        </td>
-                                                                        <td><%= sgRNA.strand %></td>
-                                                                        <td>
-                                                                            <span class="badge <%= sgRNA.log2fc > 0 ? 'bg-success' : sgRNA.log2fc < 0 ? 'bg-danger' : 'bg-secondary' %>">
-                                                                                <%= sgRNA.log2fc.toFixed(3) %>
-                                                                            </span>
-                                                                        </td>
-                                                                        <td>
-                                                                            <a href="/details/<%= sgRNA.id %>" class="btn btn-sm btn-outline-info">
-                                                                                <i class="fas fa-eye"></i> Details
-                                                                            </a>
-                                                                        </td>
-                                                                    </tr>
-                                                                    <% }); %>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="col-md-4 mb-2">
+                                            <strong>Total sgRNAs:</strong> <%= gene.totalSgRNAs %>
                                         </div>
                                     </div>
-                                    <% }); %>
                                 </div>
                             </div>
                             <% }); %>
@@ -318,9 +231,15 @@
                                         <td><%= row.symbol || 'N/A' %></td>
                                         <td><%= row.ensg || 'N/A' %></td>
                                         <td>
+                                            <% if (row.symbol && row.symbol !== 'N/A') { %>
+                                            <a href="/gene/<%= row.symbol %>" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-dna"></i> Gene Overview
+                                            </a>
+                                            <% } else { %>
                                             <a href="/details/<%= row.id %>" class="btn btn-sm btn-outline-info">
                                                 <i class="fas fa-eye"></i> Details
                                             </a>
+                                            <% } %>
                                         </td>
                                     </tr>
                                     <% }); %>
@@ -452,33 +371,22 @@
             window.location.href = '/?' + params.toString();
         }
 
-        // Export results function
-        function exportResults() {
-            if (currentResults.length === 0) {
-                alert('No data to export. Please perform a search first.');
-                return;
+        // Auto-scroll to results when search is performed
+        document.addEventListener('DOMContentLoaded', function() {
+            const resultsSection = document.getElementById('resultsSection');
+            const hasSearch = <%= hasSearch ? 'true' : 'false' %>;
+            
+            // If there's a search query and results section exists, scroll to it
+            if (hasSearch && resultsSection) {
+                // Small delay to ensure page is fully rendered
+                setTimeout(function() {
+                    resultsSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                }, 100);
             }
-            
-            // Convert to CSV
-            const headers = ['ID', 'Chromosome', 'Start', 'End', 'Strand', 'Symbol', 'ENSG', 'Log2FC', 'Effect', 'Cell Line', 'Condition'];
-            const csvContent = [
-                headers.join(','),
-                ...currentResults.map(row => [
-                    row.id, row.chr, row.start, row.end, row.strand,
-                    row.symbol || '', row.ensg || '', row.log2fc, row.effect,
-                    row.cellline || '', row.condition || ''
-                ].join(','))
-            ].join('\n');
-            
-            // Download CSV
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'genomic_data_export.csv';
-            a.click();
-            window.URL.revokeObjectURL(url);
-        }
+        });
     </script>
 </body>
 </html>
