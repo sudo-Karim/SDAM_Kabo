@@ -200,11 +200,11 @@
                                 <table class="table table-sm">
                                     <tr>
                                         <td><strong>Initial Read Count:</strong></td>
-                                        <td><%= data.rc_initial || 'N/A' %></td>
+                                        <td><%= data.rc_initial !== null && data.rc_initial !== undefined ? data.rc_initial.toLocaleString() : 'N/A' %></td>
                                     </tr>
                                     <tr>
                                         <td><strong>Final Read Count:</strong></td>
-                                        <td><%= data.rc_final || 'N/A' %></td>
+                                        <td><%= data.rc_final !== null && data.rc_final !== undefined ? data.rc_final.toLocaleString() : 'N/A' %></td>
                                     </tr>
                                     <tr>
                                         <td><strong>PubMed ID:</strong></td>

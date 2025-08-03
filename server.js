@@ -8,7 +8,8 @@ const {
     handleApiError, parseQueryParams, validateSortBy 
 } = require('./utils/responseHelpers');
 
-const { GeneView } = require('./model/GeneView');
+const Gene = require('./model/Gene');
+const GeneView = require('./model/GeneView');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,49 +36,9 @@ function shouldUseGeneView(searchQuery) {
     return searchQuery && searchQuery.trim().length > 0;
 }
 
-// Helper function to get gene-based results
+// Helper function to get gene-based results using optimized relational queries
 function getGeneViewResults(searchQuery, page, limit, sortBy, sortOrder, callback) {
-    // First, get all records for genes matching the search
-    const geneSearchQuery = `
-        SELECT rowid, * FROM genome_crispr 
-        WHERE symbol LIKE ? OR ensg LIKE ?
-        ORDER BY symbol, cellline, ${sortBy} ${sortOrder}
-    `;
-    
-    const searchPattern = `%${searchQuery}%`;
-    let params = [searchPattern, searchPattern];
-    
-    db.all(geneSearchQuery, params, (err, allRows) => {
-        if (err) return callback(err, null);
-        
-        // Group rows by gene symbol
-        const geneGroups = new Map();
-        allRows.forEach(row => {
-            const symbol = row.symbol;
-            if (!geneGroups.has(symbol)) {
-                geneGroups.set(symbol, []);
-            }
-            geneGroups.get(symbol).push(row);
-        });
-        
-        // Convert to GeneView objects
-        const geneViews = Array.from(geneGroups.values()).map(rows => 
-            GeneView.fromDbRows(rows)
-        );
-        
-        // Apply pagination to gene views
-        const totalGenes = geneViews.length;
-        const totalPages = Math.ceil(totalGenes / limit);
-        const offset = (page - 1) * limit;
-        const paginatedGenes = geneViews.slice(offset, offset + limit);
-        
-        callback(null, {
-            results: paginatedGenes.map(gv => gv.toJSON()),
-            totalRows: totalGenes,
-            totalPages: totalPages,
-            isGeneView: true
-        });
-    });
+    Gene.searchGenes(db, searchQuery, { page, limit, sortBy, sortOrder }, callback);
 }
 
 // Main route - handles both search and initial page load
@@ -100,8 +61,23 @@ app.get('/', (req, res) => {
                 });
             }
             
+            // Convert Gene model results to GeneView format for frontend compatibility
+            const convertedResults = result.results.map(geneData => {
+                // For search results, the Gene model includes cached stats but empty experiments
+                // Create a compatible structure for the frontend
+                const cellLineCount = geneData.cellLineCount || 0;
+                return {
+                    symbol: geneData.symbol,
+                    ensg: geneData.ensg,
+                    chr: geneData.chr,
+                    totalSgRNAs: geneData.totalSgRNAs || 0,
+                    averageEffect: geneData.averageEffect,
+                    cellLines: Array(cellLineCount).fill({}) // Create array with correct length for counting
+                };
+            });
+            
             renderIndexSuccess(res, req, {
-                results: result.results, totalRows: result.totalRows, currentPage: params.page,
+                results: convertedResults, totalRows: result.totalRows, currentPage: params.page,
                 totalPages: result.totalPages, itemsPerPage: params.limit, sortBy: params.sortBy,
                 sortOrder: params.sortOrder, hasSearch: true, isGeneView: true
             });
@@ -147,15 +123,16 @@ app.get('/details/:id', (req, res) => {
     });
 });
 
-// Gene overview route
+// Gene overview route using optimized relational queries with frontend compatibility
 app.get('/gene/:symbol', (req, res) => {
     const symbol = req.params.symbol;
     
-    db.all('SELECT rowid, * FROM genome_crispr WHERE symbol = ? ORDER BY cellline, start', [symbol], (err, rows) => {
+    Gene.loadWithRelations(db, symbol, (err, gene) => {
         if (err) return res.render('gene-overview', { error: 'Database error occurred', gene: null });
-        if (!rows || rows.length === 0) return res.render('gene-overview', { error: 'Gene not found', gene: null });
+        if (!gene) return res.render('gene-overview', { error: 'Gene not found', gene: null });
 
-        const geneView = GeneView.fromDbRows(rows);
+        // Convert to GeneView for frontend template compatibility
+        const geneView = GeneView.fromGeneModel(gene.toJSON());
         res.render('gene-overview', { gene: geneView.toJSON(), error: null });
     });
 });
@@ -177,11 +154,25 @@ app.get('/api/records', (req, res) => {
 
         // Use gene view logic for gene searches (consistent with main route)
         if (params.searchQuery && shouldUseGeneView(params.searchQuery)) {
-            getGeneViewResults(params.searchQuery, null, null, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
+            getGeneViewResults(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
                 if (err) return handleApiError(res, err);
 
+                // Convert Gene model results to GeneView format for API consistency
+                const convertedResults = result.results.map(geneData => {
+                    // For search results, use the optimized data directly
+                    const cellLineCount = geneData.cellLineCount || 0;
+                    return {
+                        symbol: geneData.symbol,
+                        ensg: geneData.ensg,
+                        chr: geneData.chr,
+                        totalSgRNAs: geneData.totalSgRNAs || 0,
+                        averageEffect: geneData.averageEffect,
+                        cellLines: Array(cellLineCount).fill({}) // Create array with correct length for counting
+                    };
+                });
+
                 res.json({
-                    data: result.results,
+                    data: convertedResults,
                     pagination: {
                         currentPage: params.page,
                         totalPages: result.totalPages,
@@ -259,14 +250,14 @@ app.get('/api/records/:id', (req, res) => {
     });
 });
 
-// GET /api/stats - Get database statistics
+// GET /api/stats - Get database statistics using optimized relational queries
 app.get('/api/stats', (req, res) => {
     const queries = {
-        total: 'SELECT COUNT(*) as count FROM genome_crispr',
-        chromosomes: 'SELECT chr, COUNT(*) as count FROM genome_crispr GROUP BY chr ORDER BY chr',
-        strands: 'SELECT strand, COUNT(*) as count FROM genome_crispr WHERE strand IS NOT NULL AND strand != "" GROUP BY strand',
-        effects: 'SELECT effect, COUNT(*) as count FROM genome_crispr WHERE effect IS NOT NULL AND effect != "" GROUP BY effect ORDER BY count DESC',
-        cellLines: 'SELECT cellline, COUNT(*) as count FROM genome_crispr WHERE cellline IS NOT NULL AND cellline != "" GROUP BY cellline ORDER BY count DESC LIMIT 10'
+        total: 'SELECT COUNT(*) as count FROM sgrnas',
+        genes: 'SELECT COUNT(*) as count FROM genes',
+        chromosomes: 'SELECT g.chr, COUNT(s.sgrna_id) as count FROM genes g JOIN experiments e ON g.gene_id = e.gene_id JOIN sgrnas s ON e.experiment_id = s.experiment_id GROUP BY g.chr ORDER BY g.chr',
+        effects: 'SELECT s.effect, COUNT(*) as count FROM sgrnas s WHERE s.effect IS NOT NULL AND s.effect != "" GROUP BY s.effect ORDER BY count DESC',
+        cellLines: 'SELECT cl.name as cellline, COUNT(s.sgrna_id) as count FROM cell_lines cl JOIN experiments e ON cl.cellline_id = e.cellline_id JOIN sgrnas s ON e.experiment_id = s.experiment_id GROUP BY cl.name ORDER BY count DESC LIMIT 10'
     };
 
     const results = {};

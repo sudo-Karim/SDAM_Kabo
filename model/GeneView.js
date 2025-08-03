@@ -1,5 +1,6 @@
 /**
  * GeneView model for hierarchical gene data representation
+ * Maintains compatibility with existing frontend templates
  */
 
 class GeneView {
@@ -7,7 +8,7 @@ class GeneView {
         this.symbol = data.symbol;
         this.ensg = data.ensg;
         this.chr = data.chr;
-        this.cellLines = new Map(); // Will store CellLineView objects
+        this.cellLines = []; // Array of CellLineView objects for frontend compatibility
     }
 
     /**
@@ -15,24 +16,26 @@ class GeneView {
      * @param {Object} cellLineData - Cell line data
      */
     addCellLine(cellLineData) {
-        const cellLineName = cellLineData.cellline;
+        const cellLineName = cellLineData.cellline || cellLineData.name;
         
-        if (!this.cellLines.has(cellLineName)) {
-            this.cellLines.set(cellLineName, new CellLineView({
+        let existingCellLine = this.cellLines.find(cl => cl.name === cellLineName);
+        if (!existingCellLine) {
+            existingCellLine = new CellLineView({
                 name: cellLineName,
                 condition: cellLineData.condition,
                 cas: cellLineData.cas,
                 screentype: cellLineData.screentype,
                 pubmed: cellLineData.pubmed
-            }));
+            });
+            this.cellLines.push(existingCellLine);
         }
         
         // Add sgRNA to the cell line
-        this.cellLines.get(cellLineName).addSgRNA({
-            id: cellLineData.id || cellLineData.rowid,
+        existingCellLine.addSgRNA({
+            id: cellLineData.id || cellLineData.rowid || cellLineData.sgrna_id,
             sequence: cellLineData.sequence,
-            start: cellLineData.start,
-            end: cellLineData.end,
+            start: cellLineData.start || cellLineData.start_pos,
+            end: cellLineData.end || cellLineData.end_pos,
             strand: cellLineData.strand,
             log2fc: cellLineData.log2fc,
             effect: cellLineData.effect,
@@ -46,11 +49,7 @@ class GeneView {
      * @returns {number} Total sgRNA count
      */
     getTotalSgRNACount() {
-        let total = 0;
-        for (const cellLine of this.cellLines.values()) {
-            total += cellLine.sgRNAs.length;
-        }
-        return total;
+        return this.cellLines.reduce((total, cellLine) => total + cellLine.sgRNAs.length, 0);
     }
 
     /**
@@ -61,7 +60,7 @@ class GeneView {
         let totalEffect = 0;
         let count = 0;
         
-        for (const cellLine of this.cellLines.values()) {
+        for (const cellLine of this.cellLines) {
             for (const sgRNA of cellLine.sgRNAs) {
                 if (sgRNA.log2fc !== null && !isNaN(parseFloat(sgRNA.log2fc))) {
                     totalEffect += parseFloat(sgRNA.log2fc);
@@ -74,7 +73,7 @@ class GeneView {
     }
 
     /**
-     * Format the gene view for API response
+     * Format the gene view for API response and frontend templates
      * @returns {Object} Formatted gene view object
      */
     toJSON() {
@@ -84,33 +83,39 @@ class GeneView {
             chr: this.chr,
             totalSgRNAs: this.getTotalSgRNACount(),
             averageEffect: this.getAverageEffect(),
-            cellLines: Array.from(this.cellLines.values()).map(cl => cl.toJSON())
+            cellLines: this.cellLines.map(cl => cl.toJSON())
         };
     }
 
     /**
-     * Create a GeneView instance from multiple database rows
-     * @param {Array} rows - Array of database row objects for the same gene
+     * Create a GeneView instance from Gene model with experiments
+     * @param {Object} geneData - Gene data from relational model
      * @returns {GeneView} GeneView instance
      */
-    static fromDbRows(rows) {
-        if (!rows || rows.length === 0) return null;
-        
-        const firstRow = rows[0];
+    static fromGeneModel(geneData) {
         const geneView = new GeneView({
-            symbol: firstRow.symbol,
-            ensg: firstRow.ensg,
-            chr: firstRow.chr
+            symbol: geneData.symbol,
+            ensg: geneData.ensg,
+            chr: geneData.chr
         });
-        
-        // Add all rows as cell line data
-        for (const row of rows) {
-            geneView.addCellLine({
-                ...row,
-                id: row.rowid || row.id
+
+        if (geneData.experiments) {
+            geneData.experiments.forEach(exp => {
+                if (exp.sgRNAs) {
+                    exp.sgRNAs.forEach(sgRNA => {
+                        geneView.addCellLine({
+                            cellline: exp.cellline || exp.name,
+                            condition: exp.condition,
+                            cas: exp.cas,
+                            screentype: exp.screentype,
+                            pubmed: exp.pubmed,
+                            ...sgRNA
+                        });
+                    });
+                }
             });
         }
-        
+
         return geneView;
     }
 }
@@ -235,4 +240,4 @@ class SgRNAView {
     }
 }
 
-module.exports = { GeneView, CellLineView, SgRNAView };
+module.exports = GeneView;
