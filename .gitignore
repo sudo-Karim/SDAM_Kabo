@@ -1,1 +1,4 @@
 node_modules/
+genome_crispr.db
+GenomeCRISPR_full.csv
+GenomeCRISPR_trimmed.csv
