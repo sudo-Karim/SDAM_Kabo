@@ -18,7 +18,7 @@
                 <i class="fas fa-dna"></i> Genomic Data Warehouse
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="<%= backUrl %>">
+                <a class="nav-link" href="javascript:history.back()">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
             </div>
@@ -33,7 +33,7 @@
                 <div class="alert alert-danger" role="alert">
                     <i class="fas fa-exclamation-triangle"></i> <%= error %>
                 </div>
-                <a href="<%= backUrl %>" class="btn btn-primary">
+                <a href="javascript:history.back()" class="btn btn-primary">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
             </div>
@@ -281,15 +281,7 @@
     </div>
     </div>
 
-    <!-- Data for JavaScript -->
-    <script type="application/json" id="genomic-data">
-        <%- JSON.stringify(data || {}) %>
-    </script>
-
-    <script>
-        // Get data from the JSON script tag
-        const genomicData = JSON.parse(document.getElementById('genomic-data').textContent);
-    </script>
+    <!-- Pure server-side rendering - no JavaScript needed -->
 
     <!-- Footer -->
     <footer class="bg-dark text-light text-center py-3 mt-5">

@@ -42,7 +42,7 @@
                 <i class="fas fa-dna"></i> Genomic Data Warehouse
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="<%= backUrl %>">
+                <a class="nav-link" href="javascript:history.back()">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
             </div>
@@ -57,7 +57,7 @@
                 <div class="alert alert-danger" role="alert">
                     <i class="fas fa-exclamation-triangle"></i> <%= error %>
                 </div>
-                <a href="<%= backUrl %>" class="btn btn-primary">
+                <a href="javascript:history.back()" class="btn btn-primary">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
             </div>
@@ -242,7 +242,11 @@
                                                 </span>
                                             </th>
                                             <th>Sequence</th>
-                                            <th>Strand</th>
+                                            <th>
+                                                <span class="sortable-header text-white" data-sort="strand" style="cursor: pointer;">
+                                                    Strand <i class="fas fa-sort" id="sort-strand-<%= gene.symbol %>-<%= cellIndex %>"></i>
+                                                </span>
+                                            </th>
                                             <th>
                                                 <span class="sortable-header text-white" data-sort="log2fc" style="cursor: pointer;">
                                                     Log2FC <i class="fas fa-sort" id="sort-log2fc-<%= gene.symbol %>-<%= cellIndex %>"></i>
@@ -253,7 +257,7 @@
                                     </thead>
                                     <tbody id="table-body-<%= gene.symbol %>-<%= cellIndex %>">
                                         <% cellLine.sgRNAs.forEach(sgRNA => { %>
-                                        <tr data-id="<%= sgRNA.id %>" data-log2fc="<%= sgRNA.log2fc %>">
+                                        <tr data-id="<%= sgRNA.id %>" data-log2fc="<%= sgRNA.log2fc %>" data-strand="<%= sgRNA.strand %>">
                                             <td><%= sgRNA.id %></td>
                                             <td>
                                                 <code class="small text-break"><%= sgRNA.sequence %></code>
@@ -353,12 +357,27 @@
                         } else if (sortBy === 'log2fc') {
                             aVal = parseFloat(a.getAttribute('data-log2fc'));
                             bVal = parseFloat(b.getAttribute('data-log2fc'));
+                        } else if (sortBy === 'strand') {
+                            aVal = a.getAttribute('data-strand');
+                            bVal = b.getAttribute('data-strand');
+                            // For strand, we want + before - when ascending
+                            if (ascending) {
+                                if (aVal === '+' && bVal === '-') return -1;
+                                if (aVal === '-' && bVal === '+') return 1;
+                                return 0;
+                            } else {
+                                if (aVal === '-' && bVal === '+') return -1;
+                                if (aVal === '+' && bVal === '-') return 1;
+                                return 0;
+                            }
                         }
                         
-                        if (ascending) {
-                            return aVal - bVal;
-                        } else {
-                            return bVal - aVal;
+                        if (sortBy !== 'strand') {
+                            if (ascending) {
+                                return aVal - bVal;
+                            } else {
+                                return bVal - aVal;
+                            }
                         }
                     });
                     
@@ -383,6 +402,28 @@
                         }
                     }, 50);
                 });
+            });
+
+            // Apply default sorting: ID ascending for all tables
+            document.querySelectorAll('table[data-gene]').forEach(table => {
+                const tbody = table.querySelector('tbody');
+                const idHeader = table.querySelector('.sortable-header[data-sort="id"]');
+                const idIcon = idHeader.querySelector('i');
+                
+                // Set the icon to show ascending sort
+                idIcon.className = 'fas fa-sort-up';
+                
+                // Get all rows and sort them by ID ascending
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                rows.sort((a, b) => {
+                    const aVal = parseInt(a.getAttribute('data-id'));
+                    const bVal = parseInt(b.getAttribute('data-id'));
+                    return aVal - bVal; // Ascending order
+                });
+                
+                // Clear tbody and append sorted rows
+                tbody.innerHTML = '';
+                rows.forEach(row => tbody.appendChild(row));
             });
         });
 
