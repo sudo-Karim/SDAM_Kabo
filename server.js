@@ -41,6 +41,21 @@ function getGeneViewResults(searchQuery, page, limit, sortBy, sortOrder, callbac
     Gene.searchGenes(db, searchQuery, { page, limit, sortBy, sortOrder }, callback);
 }
 
+// Helper function to convert Gene model results to GeneView format (removes duplication)
+function convertGeneModelToView(results) {
+    return results.map(geneData => {
+        const cellLineCount = geneData.cellLineCount || 0;
+        return {
+            symbol: geneData.symbol,
+            ensg: geneData.ensg,
+            chr: geneData.chr,
+            totalSgRNAs: geneData.totalSgRNAs || 0,
+            averageEffect: geneData.averageEffect,
+            cellLines: Array(cellLineCount).fill({}) // Create array with correct length for counting
+        };
+    });
+}
+
 // Main route - handles both search and initial page load
 app.get('/', (req, res) => {
     const params = parseQueryParams(req.query);
@@ -61,20 +76,8 @@ app.get('/', (req, res) => {
                 });
             }
             
-            // Convert Gene model results to GeneView format for frontend compatibility
-            const convertedResults = result.results.map(geneData => {
-                // For search results, the Gene model includes cached stats but empty experiments
-                // Create a compatible structure for the frontend
-                const cellLineCount = geneData.cellLineCount || 0;
-                return {
-                    symbol: geneData.symbol,
-                    ensg: geneData.ensg,
-                    chr: geneData.chr,
-                    totalSgRNAs: geneData.totalSgRNAs || 0,
-                    averageEffect: geneData.averageEffect,
-                    cellLines: Array(cellLineCount).fill({}) // Create array with correct length for counting
-                };
-            });
+            // Use shared conversion function
+            const convertedResults = convertGeneModelToView(result.results);
             
             renderIndexSuccess(res, req, {
                 results: convertedResults, totalRows: result.totalRows, currentPage: params.page,
@@ -157,19 +160,8 @@ app.get('/api/records', (req, res) => {
             getGeneViewResults(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
                 if (err) return handleApiError(res, err);
 
-                // Convert Gene model results to GeneView format for API consistency
-                const convertedResults = result.results.map(geneData => {
-                    // For search results, use the optimized data directly
-                    const cellLineCount = geneData.cellLineCount || 0;
-                    return {
-                        symbol: geneData.symbol,
-                        ensg: geneData.ensg,
-                        chr: geneData.chr,
-                        totalSgRNAs: geneData.totalSgRNAs || 0,
-                        averageEffect: geneData.averageEffect,
-                        cellLines: Array(cellLineCount).fill({}) // Create array with correct length for counting
-                    };
-                });
+                // Use shared conversion function
+                const convertedResults = convertGeneModelToView(result.results);
 
                 res.json({
                     data: convertedResults,

@@ -122,7 +122,7 @@ class Gene extends BaseModel {
     }
 
     /**
-     * Calculate midpoint for sgRNA
+     * Calculate midpoint and length for sgRNA
      * @private
      */
     _calculateMidpoint(start, end) {
@@ -131,10 +131,6 @@ class Gene extends BaseModel {
         return (!isNaN(s) && !isNaN(e)) ? Math.floor((s + e) / 2) : null;
     }
 
-    /**
-     * Calculate length for sgRNA
-     * @private
-     */
     _calculateLength(start, end) {
         const s = parseInt(start);
         const e = parseInt(end);

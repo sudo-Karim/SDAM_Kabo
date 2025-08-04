@@ -190,8 +190,7 @@ class SgRNAView {
     }
 
     /**
-     * Calculate the midpoint of the sgRNA
-     * @returns {number} Midpoint position
+     * Calculate derived properties
      */
     getMidpoint() {
         return (!isNaN(this.start) && !isNaN(this.end)) 
@@ -199,20 +198,12 @@ class SgRNAView {
             : null;
     }
 
-    /**
-     * Calculate the length of the sgRNA
-     * @returns {number} Length in base pairs
-     */
     getLength() {
         return (!isNaN(this.start) && !isNaN(this.end)) 
             ? Math.abs(this.end - this.start) + 1 
             : null;
     }
 
-    /**
-     * Get the fold change value (not log2)
-     * @returns {number} Fold change
-     */
     getFoldChange() {
         const log2fc = parseFloat(this.log2fc);
         return isNaN(log2fc) ? null : Math.pow(2, log2fc);

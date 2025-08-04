@@ -2,6 +2,10 @@
  * Search argument parsing and SQL query building for genomic data
  */
 
+/**
+ * Internal helper class for building search conditions
+ * @private
+ */
 class SearchArguments {
     constructor() {
         this.conditions = [];
@@ -86,47 +90,9 @@ function parseSearchQuery(queryParams) {
         }
     }
 
-    // Position range filters
-    if (queryParams.startPos && !isNaN(queryParams.startPos)) {
-        searchArgs.addCondition('CAST(start AS INTEGER) >= ?', parseInt(queryParams.startPos));
-    }
-
-    if (queryParams.endPos && !isNaN(queryParams.endPos)) {
-        searchArgs.addCondition('CAST(end AS INTEGER) <= ?', parseInt(queryParams.endPos));
-    }
-
-    // Cell line filter
+    // Cell line filter (still used for legacy flat table queries)
     if (queryParams.cellline && queryParams.cellline.trim()) {
         searchArgs.addCondition('cellline LIKE ?', `%${queryParams.cellline.trim()}%`);
-    }
-
-    // Condition filter
-    if (queryParams.condition && queryParams.condition.trim()) {
-        searchArgs.addCondition('condition LIKE ?', `%${queryParams.condition.trim()}%`);
-    }
-
-    // Log2FC range filters
-    if (queryParams.minLog2fc && !isNaN(queryParams.minLog2fc)) {
-        searchArgs.addCondition('CAST(log2fc AS REAL) >= ?', parseFloat(queryParams.minLog2fc));
-    }
-
-    if (queryParams.maxLog2fc && !isNaN(queryParams.maxLog2fc)) {
-        searchArgs.addCondition('CAST(log2fc AS REAL) <= ?', parseFloat(queryParams.maxLog2fc));
-    }
-
-    // Screen type filter
-    if (queryParams.screentype && queryParams.screentype.trim()) {
-        searchArgs.addCondition('screentype LIKE ?', `%${queryParams.screentype.trim()}%`);
-    }
-
-    // Cas system filter
-    if (queryParams.cas && queryParams.cas.trim()) {
-        searchArgs.addCondition('cas LIKE ?', `%${queryParams.cas.trim()}%`);
-    }
-
-    // PubMed ID filter
-    if (queryParams.pubmed && queryParams.pubmed.trim()) {
-        searchArgs.addCondition('pubmed = ?', queryParams.pubmed.trim());
     }
 
     return searchArgs;
