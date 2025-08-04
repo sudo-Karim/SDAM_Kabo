@@ -11,7 +11,7 @@ function renderIndexError(res, req, error, options = {}) {
     const defaults = {
         results: [], totalRows: 0, currentPage: 1, totalPages: 0,
         itemsPerPage: 10, sortBy: 'rowid', sortOrder: 'ASC',
-        hasSearch: false, isGeneView: false
+        hasSearch: false
     };
     
     res.render('index', {
@@ -39,13 +39,6 @@ function renderIndexSuccess(res, req, data) {
  */
 function formatGeneFromRow(row) {
     return Gene.fromDbRow({ ...row, id: row.rowid }).toJSON();
-}
-
-/**
- * Format multiple database rows using Gene model
- */
-function formatGenesFromRows(rows) {
-    return rows.map(formatGeneFromRow);
 }
 
 /**
@@ -83,7 +76,6 @@ module.exports = {
     renderIndexError,
     renderIndexSuccess,
     formatGeneFromRow,
-    formatGenesFromRows,
     handleApiError,
     parseQueryParams,
     validateSortBy

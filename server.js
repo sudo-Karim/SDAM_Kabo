@@ -2,9 +2,8 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
-const { buildSearchQuery } = require('./searchArg');
 const { 
-    renderIndexError, renderIndexSuccess, formatGenesFromRows, formatGeneFromRow,
+    renderIndexError, renderIndexSuccess, formatGeneFromRow,
     handleApiError, parseQueryParams, validateSortBy 
 } = require('./utils/responseHelpers');
 
@@ -30,31 +29,12 @@ const db = new sqlite3.Database('./genome_crispr.db', (err) => {
     else console.log('Connected to the SQLite database.');
 });
 
-// Helper function to determine if search should use gene view
-function shouldUseGeneView(searchQuery) {
-    // Always use gene view for any non-empty search query
-    return searchQuery && searchQuery.trim().length > 0;
-}
-
-// Helper function to get gene-based results using optimized relational queries
-function getGeneViewResults(searchQuery, page, limit, sortBy, sortOrder, callback) {
+// Helper function to get gene search results using optimized relational queries
+function searchGenesWithPagination(searchQuery, page, limit, sortBy, sortOrder, callback) {
     Gene.searchGenes(db, searchQuery, { page, limit, sortBy, sortOrder }, callback);
 }
 
-// Helper function to convert Gene model results to GeneView format (removes duplication)
-function convertGeneModelToView(results) {
-    return results.map(geneData => {
-        const cellLineCount = geneData.cellLineCount || 0;
-        return {
-            symbol: geneData.symbol,
-            ensg: geneData.ensg,
-            chr: geneData.chr,
-            totalSgRNAs: geneData.totalSgRNAs || 0,
-            averageEffect: geneData.averageEffect,
-            cellLines: Array(cellLineCount).fill({}) // Create array with correct length for counting
-        };
-    });
-}
+
 
 // Main route - handles both search and initial page load
 app.get('/', (req, res) => {
@@ -64,55 +44,24 @@ app.get('/', (req, res) => {
         return renderIndexSuccess(res, req, {
             results: [], totalRows: 0, currentPage: 1, totalPages: 0,
             itemsPerPage: 10, sortBy: 'rowid', sortOrder: 'ASC',
-            hasSearch: false, isGeneView: false
+            hasSearch: false
         });
     }
 
-    if (shouldUseGeneView(params.searchQuery)) {
-        getGeneViewResults(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
-            if (err) {
-                return renderIndexError(res, req, 'Database error occurred', {
-                    itemsPerPage: params.limit, sortBy: params.sortBy, sortOrder: params.sortOrder, hasSearch: true
-                });
-            }
-            
-            // Use shared conversion function
-            const convertedResults = convertGeneModelToView(result.results);
-            
-            renderIndexSuccess(res, req, {
-                results: convertedResults, totalRows: result.totalRows, currentPage: params.page,
-                totalPages: result.totalPages, itemsPerPage: params.limit, sortBy: params.sortBy,
-                sortOrder: params.sortOrder, hasSearch: true, isGeneView: true
+    // Use optimized Gene model for all searches
+    searchGenesWithPagination(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
+        if (err) {
+            return renderIndexError(res, req, 'Database error occurred', {
+                itemsPerPage: params.limit, sortBy: params.sortBy, sortOrder: params.sortOrder, hasSearch: true
             });
+        }
+
+        renderIndexSuccess(res, req, {
+            results: result.results, totalRows: result.totalRows, currentPage: params.page,
+            totalPages: result.totalPages, itemsPerPage: params.limit, sortBy: params.sortBy,
+            sortOrder: params.sortOrder, hasSearch: true
         });
-    } else {
-        const { query, countQuery, params: searchParams } = buildSearchQuery(req.query, params);
-
-        db.get(countQuery, searchParams, (err, countResult) => {
-            if (err) {
-                return renderIndexError(res, req, 'Database error occurred', {
-                    itemsPerPage: params.limit, sortBy: params.sortBy, sortOrder: params.sortOrder, hasSearch: false
-                });
-            }
-
-            const totalRows = countResult.total || countResult.count;
-            const totalPages = Math.ceil(totalRows / params.limit);
-
-            db.all(query, searchParams, (err, rows) => {
-                if (err) {
-                    return renderIndexError(res, req, 'Database error occurred', {
-                        itemsPerPage: params.limit, sortBy: params.sortBy, sortOrder: params.sortOrder, hasSearch: true
-                    });
-                }
-
-                renderIndexSuccess(res, req, {
-                    results: formatGenesFromRows(rows), totalRows, currentPage: params.page,
-                    totalPages, itemsPerPage: params.limit, sortBy: params.sortBy,
-                    sortOrder: params.sortOrder, hasSearch: true, isGeneView: false
-                });
-            });
-        });
-    }
+    });
 });
 
 // Details page route
@@ -156,15 +105,12 @@ app.get('/api/records', (req, res) => {
         }
 
         // Use gene view logic for gene searches (consistent with main route)
-        if (params.searchQuery && shouldUseGeneView(params.searchQuery)) {
-            getGeneViewResults(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
+        if (params.searchQuery) {
+            searchGenesWithPagination(params.searchQuery, params.page, params.limit, params.sortBy, params.sortOrder, (err, result) => {
                 if (err) return handleApiError(res, err);
 
-                // Use shared conversion function
-                const convertedResults = convertGeneModelToView(result.results);
-
                 res.json({
-                    data: convertedResults,
+                    data: result.results,
                     pagination: {
                         currentPage: params.page,
                         totalPages: result.totalPages,
@@ -183,37 +129,24 @@ app.get('/api/records', (req, res) => {
                 });
             });
         } else {
-            const { query, countQuery, searchParams } = buildSearchQuery(req.query, params);
-
-            // Get count and data
-            db.get(countQuery, searchParams, (err, countResult) => {
-                if (err) return handleApiError(res, err);
-
-                const totalResults = countResult.total || countResult.count;
-                const totalPages = Math.ceil(totalResults / params.limit);
-
-                db.all(query, searchParams, (err, rows) => {
-                    if (err) return handleApiError(res, err);
-
-                    res.json({
-                        data: formatGenesFromRows(rows),
-                        pagination: {
-                            currentPage: params.page,
-                            totalPages,
-                            totalResults,
-                            limit: params.limit,
-                            hasNext: params.page < totalPages,
-                            hasPrev: params.page > 1
-                        },
-                        filters: {
-                            query: params.searchQuery,
-                            strand: params.strand,
-                            effect: params.effect,
-                            sortBy: params.sortBy,
-                            sortOrder: params.sortOrder
-                        }
-                    });
-                });
+            // No search query, return empty results
+            res.json({
+                data: [],
+                pagination: {
+                    currentPage: 1,
+                    totalPages: 0,
+                    totalResults: 0,
+                    limit: params.limit,
+                    hasNext: false,
+                    hasPrev: false
+                },
+                filters: {
+                    query: '',
+                    strand: params.strand,
+                    effect: params.effect,
+                    sortBy: params.sortBy,
+                    sortOrder: params.sortOrder
+                }
             });
         }
     } catch (error) {
@@ -298,20 +231,26 @@ app.get('/api/export', (req, res) => {
     const params = parseQueryParams(req.query);
     const limit = Math.min(parseInt(req.query.limit) || 10000, 50000);
     
-    const { query, params: searchParams } = buildSearchQuery({
-        query: params.searchQuery,
-        strand: params.strand,
-        effect: params.effect
-    }, { page: 1, limit, sortBy: 'rowid', sortOrder: 'ASC' });
+    if (!params.searchQuery) {
+        return res.json({ 
+            data: [],
+            metadata: {
+                exportDate: new Date().toISOString(),
+                totalRecords: 0,
+                filters: { query: '', strand: params.strand, effect: params.effect }
+            }
+        });
+    }
     
-    db.all(query, searchParams, (err, results) => {
+    // Use optimized Gene model for export
+    searchGenesWithPagination(params.searchQuery, 1, limit, 'symbol', 'ASC', (err, result) => {
         if (err) return handleApiError(res, err);
         
         res.json({ 
-            data: formatGenesFromRows(results),
+            data: result.results,
             metadata: {
                 exportDate: new Date().toISOString(),
-                totalRecords: results.length,
+                totalRecords: result.results.length,
                 filters: { query: params.searchQuery, strand: params.strand, effect: params.effect }
             }
         });

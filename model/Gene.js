@@ -283,8 +283,7 @@ class Gene extends BaseModel {
                 callback(null, {
                     results: results.map(gene => gene.toJSON()),
                     totalRows: countResult.total,
-                    totalPages: Math.ceil(countResult.total / limit),
-                    isGeneView: true
+                    totalPages: Math.ceil(countResult.total / limit)
                 });
             });
         });
