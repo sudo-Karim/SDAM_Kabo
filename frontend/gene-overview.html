@@ -42,8 +42,8 @@
                 <i class="fas fa-dna"></i> Genomic Data Warehouse
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="javascript:history.back()">
-                    <i class="fas fa-arrow-left"></i> Back
+                <a class="nav-link" href="#" id="smartBackButton" onclick="goBackToSearch()">
+                    <i class="fas fa-arrow-left"></i> Back to Search
                 </a>
             </div>
         </div>
@@ -57,8 +57,8 @@
                 <div class="alert alert-danger" role="alert">
                     <i class="fas fa-exclamation-triangle"></i> <%= error %>
                 </div>
-                <a href="javascript:history.back()" class="btn btn-primary">
-                    <i class="fas fa-arrow-left"></i> Back
+                <a href="/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Search
                 </a>
             </div>
         </div>
@@ -73,13 +73,10 @@
                     <div>
                         <% if (gene.ensg) { %>
                         <a href="https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=<%= gene.ensg %>" 
-                           target="_blank" class="btn btn-outline-info me-2">
+                           target="_blank" class="btn btn-outline-info">
                             <i class="fas fa-external-link-alt"></i> View in Ensembl
                         </a>
                         <% } %>
-                        <a href="/?query=<%= gene.symbol %>" class="btn btn-outline-primary">
-                            <i class="fas fa-search"></i> Search This Gene
-                        </a>
                     </div>
                 </div>
             </div>
@@ -238,7 +235,7 @@
                                         <tr>
                                             <th>
                                                 <span class="sortable-header text-white" data-sort="id" style="cursor: pointer;">
-                                                    ID <i class="fas fa-sort" id="sort-id-<%= gene.symbol %>-<%= cellIndex %>"></i>
+                                                    ID <i class="fas fa-sort-up" id="sort-id-<%= gene.symbol %>-<%= cellIndex %>"></i>
                                                 </span>
                                             </th>
                                             <th>Sequence</th>
@@ -256,7 +253,11 @@
                                         </tr>
                                     </thead>
                                     <tbody id="table-body-<%= gene.symbol %>-<%= cellIndex %>">
-                                        <% cellLine.sgRNAs.forEach(sgRNA => { %>
+                                        <% 
+                                        // Pre-sort sgRNAs by ID ascending (server-side sorting)
+                                        const sortedSgRNAs = cellLine.sgRNAs.sort((a, b) => a.id - b.id);
+                                        sortedSgRNAs.forEach(sgRNA => { 
+                                        %>
                                         <tr data-id="<%= sgRNA.id %>" data-log2fc="<%= sgRNA.log2fc %>" data-strand="<%= sgRNA.strand %>">
                                             <td><%= sgRNA.id %></td>
                                             <td>
@@ -299,251 +300,123 @@
         </div>
     </footer>
 
-    <!-- Gene data for JavaScript -->
+    <!-- Gene data for JavaScript (simplified) -->
     <script type="application/json" id="gene-data">
-        <%- JSON.stringify({
+        <% 
+        const simplifiedData = {
             symbol: gene.symbol,
             sgRNAs: gene.cellLines.flatMap(cellLine => 
                 cellLine.sgRNAs.map(sgRNA => ({
                     id: sgRNA.id,
-                    sequence: sgRNA.sequence,
-                    strand: sgRNA.strand,
                     log2fc: sgRNA.log2fc,
-                    cellLine: cellLine.name,
-                    condition: cellLine.condition || "",
-                    cas: cellLine.cas || ""
+                    cellLine: cellLine.name
                 }))
             )
-        }) %>
+        };
+        %>
+        <%- JSON.stringify(simplifiedData) %>
     </script>
+
+    <!-- Simplified JavaScript (kept minimal for essential interactivity) -->
     <script>
-        // Parse gene data from JSON script tag
+        // Parse gene data
         window.geneData = JSON.parse(document.getElementById('gene-data').textContent);
-    </script>
 
-    <script>
-        // Table sorting functionality and collapsible cell lines
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add click event listeners to all sortable headers
-            document.querySelectorAll('.sortable-header').forEach(header => {
-                header.addEventListener('click', function() {
-                    const table = this.closest('table');
-                    const tbody = table.querySelector('tbody');
-                    const sortBy = this.getAttribute('data-sort');
-                    const gene = table.getAttribute('data-gene');
-                    const cellIndex = table.getAttribute('data-cell-index');
-                    
-                    // Get current sort direction
-                    const currentIcon = this.querySelector('i');
-                    let ascending = !currentIcon.classList.contains('fa-sort-up');
-                    
-                    // Reset all sort icons in this table
-                    table.querySelectorAll('.sortable-header i').forEach(icon => {
-                        icon.className = 'fas fa-sort';
-                    });
-                    
-                    // Set the current icon
-                    currentIcon.className = ascending ? 'fas fa-sort-up' : 'fas fa-sort-down';
-                    
-                    // Get all rows and sort them
-                    const rows = Array.from(tbody.querySelectorAll('tr'));
-                    
-                    rows.sort((a, b) => {
-                        let aVal, bVal;
-                        
-                        if (sortBy === 'id') {
-                            aVal = parseInt(a.getAttribute('data-id'));
-                            bVal = parseInt(b.getAttribute('data-id'));
-                        } else if (sortBy === 'log2fc') {
-                            aVal = parseFloat(a.getAttribute('data-log2fc'));
-                            bVal = parseFloat(b.getAttribute('data-log2fc'));
-                        } else if (sortBy === 'strand') {
-                            aVal = a.getAttribute('data-strand');
-                            bVal = b.getAttribute('data-strand');
-                            // For strand, we want + before - when ascending
-                            if (ascending) {
-                                if (aVal === '+' && bVal === '-') return -1;
-                                if (aVal === '-' && bVal === '+') return 1;
-                                return 0;
-                            } else {
-                                if (aVal === '-' && bVal === '+') return -1;
-                                if (aVal === '+' && bVal === '-') return 1;
-                                return 0;
-                            }
-                        }
-                        
-                        if (sortBy !== 'strand') {
-                            if (ascending) {
-                                return aVal - bVal;
-                            } else {
-                                return bVal - aVal;
-                            }
-                        }
-                    });
-                    
-                    // Clear tbody and append sorted rows
-                    tbody.innerHTML = '';
-                    rows.forEach(row => tbody.appendChild(row));
-                });
-            });
-
-            // Handle cell line collapse/expand
-            document.querySelectorAll('.cell-line-toggle').forEach(toggle => {
-                toggle.addEventListener('click', function() {
-                    const icon = this.querySelector('.toggle-icon');
-                    
-                    // Use a slight delay to sync with Bootstrap's collapse animation
-                    setTimeout(() => {
-                        const isExpanded = this.getAttribute('aria-expanded') === 'true';
-                        if (isExpanded) {
-                            icon.style.transform = 'rotate(0deg)'; // Expanded: chevron down
-                        } else {
-                            icon.style.transform = 'rotate(-90deg)'; // Collapsed: chevron right
-                        }
-                    }, 50);
-                });
-            });
-
-            // Apply default sorting: ID ascending for all tables
-            document.querySelectorAll('table[data-gene]').forEach(table => {
-                const tbody = table.querySelector('tbody');
-                const idHeader = table.querySelector('.sortable-header[data-sort="id"]');
-                const idIcon = idHeader.querySelector('i');
-                
-                // Set the icon to show ascending sort
-                idIcon.className = 'fas fa-sort-up';
-                
-                // Get all rows and sort them by ID ascending
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                rows.sort((a, b) => {
-                    const aVal = parseInt(a.getAttribute('data-id'));
-                    const bVal = parseInt(b.getAttribute('data-id'));
-                    return aVal - bVal; // Ascending order
-                });
-                
-                // Clear tbody and append sorted rows
-                tbody.innerHTML = '';
-                rows.forEach(row => tbody.appendChild(row));
-            });
-        });
-
-        // Gene visualization functions
-        function updateSimpleVisualization() {
-            const chartType = document.getElementById('chartType').value;
-            createSimpleVisualization(chartType);
-        }
-
-        function createSimpleVisualization(chartType = 'scatter') {
-            if (!window.geneData || !window.geneData.sgRNAs) return;
+        // Simple table sorting (consolidated function)
+        function sortTable(header) {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const sortBy = header.getAttribute('data-sort');
+            const icon = header.querySelector('i');
             
-            const sgRNAs = window.geneData.sgRNAs;
+            // Toggle sort direction
+            const ascending = !icon.classList.contains('fa-sort-up');
             
-            // Group sgRNAs by cell line
-            const cellLineGroups = {};
-            sgRNAs.forEach(sgRNA => {
-                if (!cellLineGroups[sgRNA.cellLine]) {
-                    cellLineGroups[sgRNA.cellLine] = [];
+            // Reset all icons in this table
+            table.querySelectorAll('.sortable-header i').forEach(i => i.className = 'fas fa-sort');
+            icon.className = ascending ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            
+            // Sort rows
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                let aVal, bVal;
+                if (sortBy === 'id') {
+                    aVal = parseInt(a.getAttribute('data-id'));
+                    bVal = parseInt(b.getAttribute('data-id'));
+                } else if (sortBy === 'log2fc') {
+                    aVal = parseFloat(a.getAttribute('data-log2fc'));
+                    bVal = parseFloat(b.getAttribute('data-log2fc'));
+                } else { // strand
+                    aVal = a.getAttribute('data-strand');
+                    bVal = b.getAttribute('data-strand');
+                    return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 }
-                cellLineGroups[sgRNA.cellLine].push(sgRNA);
+                return ascending ? aVal - bVal : bVal - aVal;
             });
-
-            const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
-            let data, layout;
-
-            switch (chartType) {
-                case 'scatter':
-                    data = [];
-                    Object.keys(cellLineGroups).forEach((cellLine, index) => {
-                        const cellData = cellLineGroups[cellLine];
-                        data.push({
-                            x: cellData.map((_, i) => i + 1),
-                            y: cellData.map(s => s.log2fc),
-                            type: 'scatter',
-                            mode: 'markers',
-                            name: cellLine,
-                            text: cellData.map(s => `ID: ${s.id}<br>Sequence: ${s.sequence}<br>Log2FC: ${s.log2fc.toFixed(3)}<br>Strand: ${s.strand}`),
-                            hovertemplate: '%{text}<extra></extra>',
-                            marker: { 
-                                size: 10, 
-                                color: colors[index % colors.length],
-                                opacity: 0.7,
-                                line: { width: 1, color: 'white' }
-                            }
-                        });
-                    });
-                    layout = {
-                        title: `${window.geneData.symbol} - sgRNA Effects by Cell Line`,
-                        xaxis: { title: 'sgRNA Index (within cell line)' },
-                        yaxis: { title: 'Log2 Fold Change' }
-                    };
-                    break;
-                    
-                case 'violin':
-                    data = [];
-                    Object.keys(cellLineGroups).forEach((cellLine, index) => {
-                        const cellData = cellLineGroups[cellLine];
-                        data.push({
-                            y: cellData.map(s => s.log2fc),
-                            type: 'violin',
-                            name: cellLine,
-                            box: { visible: true },
-                            meanline: { visible: true },
-                            fillcolor: colors[index % colors.length],
-                            opacity: 0.6,
-                            line: { color: colors[index % colors.length] }
-                        });
-                    });
-                    layout = {
-                        title: `${window.geneData.symbol} - Log2FC Distribution by Cell Line`,
-                        yaxis: { title: 'Log2 Fold Change' }
-                    };
-                    break;
-                    
-                case 'box':
-                    data = [];
-                    Object.keys(cellLineGroups).forEach((cellLine, index) => {
-                        const cellData = cellLineGroups[cellLine];
-                        data.push({
-                            y: cellData.map(s => s.log2fc),
-                            type: 'box',
-                            name: cellLine,
-                            marker: { color: colors[index % colors.length] },
-                            boxpoints: 'outliers'
-                        });
-                    });
-                    layout = {
-                        title: `${window.geneData.symbol} - Log2FC Box Plot by Cell Line`,
-                        yaxis: { title: 'Log2 Fold Change' }
-                    };
-                    break;
-                    
-                default:
-                    return createSimpleVisualization('scatter');
-            }
-
-            layout.height = 500;
-            layout.showlegend = true;
-            Plotly.newPlot('geneVisualizationChart', data, layout, {responsive: true});
+            
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
         }
 
-        // Initialize visualization on page load
+        // Visualization function (only essential code)
+        function createVisualization(type = 'scatter') {
+            if (!window.geneData?.sgRNAs || typeof Plotly === 'undefined') return;
+            
+            const groups = {};
+            window.geneData.sgRNAs.forEach(s => {
+                (groups[s.cellLine] ??= []).push(s);
+            });
+
+            const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd'];
+            const data = Object.entries(groups).map(([cellLine, sgRNAs], i) => ({
+                type: type === 'scatter' ? 'scatter' : type,
+                name: cellLine,
+                y: sgRNAs.map(s => s.log2fc),
+                ...(type === 'scatter' ? {
+                    x: sgRNAs.map((_, j) => j + 1),
+                    mode: 'markers',
+                    marker: { size: 8, color: colors[i % colors.length] }
+                } : {
+                    marker: { color: colors[i % colors.length] }
+                })
+            }));
+
+            Plotly.newPlot('geneVisualizationChart', data, {
+                title: `${window.geneData.symbol} - sgRNA Effects`,
+                height: 500,
+                xaxis: type === 'scatter' ? { title: 'sgRNA Index' } : {},
+                yaxis: { title: 'Log2 Fold Change' }
+            }, { responsive: true });
+        }
+
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Check if Plotly is available and gene data exists
-            if (typeof Plotly === 'undefined') {
-                document.getElementById('geneVisualizationChart').innerHTML = 
-                    '<div class="text-center p-4"><h5 class="text-danger">Plotly.js not loaded</h5></div>';
-                return;
-            }
+            // Add click handlers to sortable headers
+            document.querySelectorAll('.sortable-header').forEach(header => {
+                header.addEventListener('click', () => sortTable(header));
+            });
 
-            if (!window.geneData || !window.geneData.sgRNAs || window.geneData.sgRNAs.length === 0) {
-                document.getElementById('geneVisualizationChart').innerHTML = 
-                    '<div class="text-center p-4"><h5 class="text-warning">No sgRNA data available</h5></div>';
-                return;
-            }
-
-            // Create the initial visualization
-            createSimpleVisualization('scatter');
+            // Initialize visualization
+            createVisualization('scatter');
         });
+
+        // Chart type change handler
+        function updateSimpleVisualization() {
+            createVisualization(document.getElementById('chartType').value);
+        }
+
+        // Smart back button navigation
+        function goBackToSearch() {
+            // Try to go back to previous search if it exists in history
+            if (document.referrer && document.referrer.includes('/?')) {
+                window.location.href = document.referrer;
+            } else if (document.referrer && document.referrer.includes('/search')) {
+                window.location.href = document.referrer;
+            } else {
+                // Default to search page with current gene as query
+                window.location.href = `/?query=<%= gene.symbol %>`;
+            }
+        }
     </script>
 </body>
 </html>
