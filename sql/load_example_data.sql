@@ -1,4 +1,4 @@
--- Load example data with optimized relational structure  
+-- Load example data
 -- This creates a small dataset for development and testing
 -- Usage: sqlite3 genome_crispr.db < sql/load_example_data.sql
 

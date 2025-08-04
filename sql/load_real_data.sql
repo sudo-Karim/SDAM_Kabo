@@ -1,4 +1,4 @@
--- Load real data with relational optimization
+-- Load real data
 -- This creates normalized structure and loads complete CRISPR dataset
 -- Usage: sqlite3 genome_crispr.db < sql/load_real_data.sql
 
